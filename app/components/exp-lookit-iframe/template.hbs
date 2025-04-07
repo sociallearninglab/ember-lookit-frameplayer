@@ -1,12 +1,12 @@
-<div class="exp-lookit-iframe">
+<div class="exp-lookit-iframe" style="width: 100%; height: 100%; padding: 0; margin: 0;">
     {{#if instructionText }}<p>{{ instructionText }}</p>{{/if}}
     <iframe
-        height={{ iframeHeight }}
-        width={{ iframeWidth }}
-        src={{ iframeSrc }}
-        style="border:0px;"
-        sandbox="allow-scripts allow-same-origin allow-forms"
-        referrerpolicy="no-referrer"
+    height={{ iframeHeight }}
+    width={{ iframeWidth }}
+    src={{ iframeSrc }}
+    style="border:0px; max-width: 100%; min-height: 700px; display: block; margin: 0 auto;"
+    sandbox="allow-scripts allow-same-origin allow-forms"
+    referrerpolicy="no-referrer"
     ></iframe>
     {{#if optionalExternalLink }}
         <p>
