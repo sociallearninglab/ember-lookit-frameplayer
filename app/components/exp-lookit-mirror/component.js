@@ -2,8 +2,7 @@ import ExpLookitWebcamDisplay from '../exp-lookit-webcam-display/component';
 import Ember from 'ember';
 
 /**
- * A frame that extends exp-lookit-webcam-display to add mirror functionality
- * and background music.
+ * A frame that extends exp-lookit-webcam-display but tries an iframe approach to show the mirrored camera
  *
  * @class Exp-lookit-mirror
  * @extends Exp-lookit-webcam-display
@@ -21,14 +20,11 @@ export default ExpLookitWebcamDisplay.extend({
         
         console.log('EXP-LOOKIT-MIRROR: didInsertElement');
         
-        // Setup MutationObserver to detect when video element is created
-        this._setupMutationObserver();
+        // In addition to whatever the parent frame does, inject our own video mirror
+        this._injectMirror();
         
         // Play background music
         this._setupAudio();
-        
-        // Also add a debug display
-        this._addDebugDisplay();
     },
     
     willDestroyElement() {
@@ -39,177 +35,74 @@ export default ExpLookitWebcamDisplay.extend({
         // Clean up
         this._stopAudio();
         
-        // Disconnect observer if exists
-        if (this.observer) {
-            this.observer.disconnect();
-        }
-        
-        // Remove debug display
-        const debugDiv = document.getElementById('mirror-debug-display');
-        if (debugDiv) {
-            debugDiv.remove();
+        // Remove our injected mirror
+        const mirrorElem = document.getElementById('direct-mirror-container');
+        if (mirrorElem) {
+            mirrorElem.remove();
         }
     },
     
-    // Setup MutationObserver to watch for video element creation
-    _setupMutationObserver() {
-        // Create a MutationObserver to watch for changes to the DOM
-        this.observer = new MutationObserver((mutations) => {
-            // Check if any video elements were added
-            let videoAdded = false;
-            mutations.forEach(mutation => {
-                if (mutation.type === 'childList') {
-                    mutation.addedNodes.forEach(node => {
-                        // If a video element was added directly
-                        if (node.nodeName === 'VIDEO') {
-                            console.log('VIDEO element added directly to DOM', node);
-                            this._mirrorVideo(node);
-                            videoAdded = true;
-                        }
-                        // Or if something containing a video was added
-                        else if (node.nodeType === 1) { // Element node
-                            const videos = node.querySelectorAll('video');
-                            if (videos.length > 0) {
-                                console.log(`${videos.length} VIDEO elements found in added node`, node);
-                                videos.forEach(video => this._mirrorVideo(video));
-                                videoAdded = true;
-                            }
-                        }
-                    });
-                }
-            });
-            
-            if (videoAdded) {
-                this._updateDebugDisplay();
-            }
-        });
-        
-        // Start observing the entire document for changes
-        this.observer.observe(document.documentElement, {
-            childList: true,
-            subtree: true
-        });
-        
-        console.log('MutationObserver setup to watch for video elements');
-    },
-    
-    // Mirror a video element
-    _mirrorVideo(videoElement) {
-        console.log('Mirroring video element', videoElement);
-        
-        // Apply mirroring and ensure visibility
-        Object.assign(videoElement.style, {
-            transform: 'scaleX(-1) !important',
-            width: '100% !important',
-            height: '100% !important',
-            objectFit: 'cover !important',
-            opacity: '1 !important',
-            visibility: 'visible !important',
-            display: 'block !important'
-        });
-        
-        // Add a class to the video for CSS targeting
-        videoElement.classList.add('mirrored-video');
-        
-        // Also add an inline style element to ensure our styles aren't overridden
-        const styleId = 'mirror-video-styles';
-        if (!document.getElementById(styleId)) {
-            const styleTag = document.createElement('style');
-            styleTag.id = styleId;
-            styleTag.textContent = `
-                video, .pipeNormal, .pipeSmallNormal {
-                    transform: scaleX(-1) !important;
-                    width: 100% !important;
-                    height: 100% !important;
-                    object-fit: cover !important;
-                    opacity: 1 !important;
-                    visibility: visible !important;
-                    display: block !important;
-                }
-                
-                #recorder {
-                    width: 100% !important;
-                    height: 100% !important;
-                    background-color: black !important;
-                }
-                
-                .recorder-container {
-                    width: 100% !important;
-                    height: 100% !important;
-                }
-            `;
-            document.head.appendChild(styleTag);
-            console.log('Added global style element for video mirroring');
-        }
-        
-        // Update the debug display
-        this._updateDebugDisplay();
-    },
-    
-    // Add a debug display to show DOM status
-    _addDebugDisplay() {
-        const debugDiv = document.createElement('div');
-        debugDiv.id = 'mirror-debug-display';
-        Object.assign(debugDiv.style, {
-            position: 'fixed',
-            bottom: '10px',
-            left: '10px',
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            color: 'white',
-            padding: '10px',
-            fontFamily: 'monospace',
-            fontSize: '12px',
-            zIndex: '9999',
-            borderRadius: '5px',
-            maxWidth: '80%',
-            maxHeight: '200px',
-            overflow: 'auto'
-        });
-        
-        document.body.appendChild(debugDiv);
-        this._updateDebugDisplay();
-        
-        // Update periodically
-        setInterval(() => this._updateDebugDisplay(), 1000);
-    },
-    
-    // Update the debug display with current info
-    _updateDebugDisplay() {
-        const debugDiv = document.getElementById('mirror-debug-display');
-        if (!debugDiv) return;
-        
-        // Check for video elements
-        const allVideos = document.querySelectorAll('video');
-        const recorderElem = document.getElementById('recorder');
+    // Inject our own mirror element directly on top of the recorder
+    _injectMirror() {
+        // Find recorder container to position our mirror
         const recorderContainer = document.querySelector('.recorder-container');
+        if (!recorderContainer) {
+            console.log('Could not find recorder container for mirror injection');
+            return;
+        }
         
-        let html = '<h3>Mirror Debug</h3>';
-        html += `<p>Video elements: ${allVideos.length}</p>`;
+        console.log('Found recorder container, injecting mirror');
         
-        // Video details
-        allVideos.forEach((video, i) => {
-            const styles = window.getComputedStyle(video);
-            html += `<p>Video ${i+1}: ${video.id || 'no id'}
-                <br>Dims: ${video.offsetWidth}x${video.offsetHeight}
-                <br>Visible: ${styles.display !== 'none' && styles.visibility !== 'hidden'}
-                <br>Transform: ${styles.transform}
-                <br>Source: ${video.src || 'stream'}
-            </p>`;
+        // Create container for our mirror
+        const mirrorContainer = document.createElement('div');
+        mirrorContainer.id = 'direct-mirror-container';
+        Object.assign(mirrorContainer.style, {
+            position: 'absolute',
+            top: '0',
+            left: '0',
+            width: '100%',
+            height: '100%',
+            zIndex: '100',
+            backgroundColor: 'black'
         });
         
-        // Recorder info
-        html += `<p>Recorder element: ${recorderElem ? 'Yes' : 'No'}</p>`;
-        if (recorderElem) {
-            html += `<p>Recorder dims: ${recorderElem.offsetWidth}x${recorderElem.offsetHeight}</p>`;
+        // Create video element for our mirror
+        const mirrorVideo = document.createElement('video');
+        mirrorVideo.id = 'direct-mirror-video';
+        mirrorVideo.autoplay = true;
+        mirrorVideo.muted = true;
+        mirrorVideo.playsinline = true;
+        Object.assign(mirrorVideo.style, {
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transform: 'scaleX(-1)'
+        });
+        
+        // Add video to container
+        mirrorContainer.appendChild(mirrorVideo);
+        
+        // Add container to the page (as first child of recorder container)
+        if (recorderContainer.firstChild) {
+            recorderContainer.insertBefore(mirrorContainer, recorderContainer.firstChild);
+        } else {
+            recorderContainer.appendChild(mirrorContainer);
         }
         
-        // Container info
-        html += `<p>Recorder container: ${recorderContainer ? 'Yes' : 'No'}</p>`;
-        if (recorderContainer) {
-            html += `<p>Container dims: ${recorderContainer.offsetWidth}x${recorderContainer.offsetHeight}</p>`;
-        }
-        
-        debugDiv.innerHTML = html;
+        // Get user media for our mirror
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                console.log('Got camera stream for direct mirror');
+                mirrorVideo.srcObject = stream;
+                mirrorVideo.play()
+                    .then(() => console.log('Direct mirror playing'))
+                    .catch(e => console.error('Error playing direct mirror:', e));
+            })
+            .catch(err => {
+                console.error('Error getting camera for direct mirror:', err);
+                // If we fail, remove our container so it doesn't block the view
+                mirrorContainer.remove();
+            });
     },
     
     _setupAudio() {
