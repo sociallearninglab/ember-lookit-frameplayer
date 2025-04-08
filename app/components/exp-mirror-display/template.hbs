@@ -1,13 +1,7 @@
 {{! exp-mirror-display template }}
 <div class="exp-mirror-display">
     <div class="mirror-container">
-        {{#if recorder}}
-            <video id="mirror-webcam-display" class="webcam-display" autoplay playsinline muted={{true}}></video>
-        {{else}}
-            <div class="mirror-no-webcam">
-                <p>Webcam not available</p>
-            </div>
-        {{/if}}
+        <video id="mirror-webcam-display" class="webcam-display" autoplay playsinline muted={{true}}></video>
         
         <div class="mirror-timer">
             {{formattedTimeRemaining}}

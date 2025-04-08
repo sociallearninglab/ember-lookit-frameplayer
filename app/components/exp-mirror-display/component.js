@@ -26,11 +26,6 @@ export default ExpFrameBaseComponent.extend(FullScreen, VideoRecord, {
     didInsertElement() {
         this._super(...arguments);
         
-        // Start recording if requested
-        if (this.get('doRecording')) {
-            this.startRecorder();
-        }
-        
         // Setup keyboard listener for early exit
         this._setupKeyListener();
         
@@ -40,9 +35,45 @@ export default ExpFrameBaseComponent.extend(FullScreen, VideoRecord, {
             this._setupFullscreen();
         }
         
+        // Get access to the webcam video element for mirroring
+        this._setupWebcamDisplay();
+        
         // Start timer and audio
         this._startTimer();
         this._setupAudio();
+    },
+    
+    // Setup webcam display for mirroring
+    _setupWebcamDisplay() {
+        // Wait a moment for everything to initialize
+        setTimeout(() => {
+            try {
+                // If we have access to the recorder object
+                if (this.recorder && this.recorder.videoElement) {
+                    // Get the video element from the recorder
+                    const sourceVideo = this.recorder.videoElement;
+                    
+                    // Get our display video element
+                    const displayVideo = document.getElementById('mirror-webcam-display');
+                    
+                    if (displayVideo) {
+                        // Set the source to the recorder's stream
+                        if (sourceVideo.srcObject) {
+                            displayVideo.srcObject = sourceVideo.srcObject;
+                            console.log('Successfully mirrored webcam stream');
+                        } else {
+                            console.error('Source video has no srcObject');
+                        }
+                    } else {
+                        console.error('Could not find mirror-webcam-display element');
+                    }
+                } else {
+                    console.error('Recorder or videoElement not available');
+                }
+            } catch (e) {
+                console.error('Error setting up webcam display:', e);
+            }
+        }, 500);
     },
     
     willDestroyElement() {
@@ -55,9 +86,10 @@ export default ExpFrameBaseComponent.extend(FullScreen, VideoRecord, {
         // Remove keyboard listener
         document.removeEventListener('keydown', this._boundKeyHandler);
         
-        // Stop recording if active
-        if (this.recorder) {
-            this.stopRecorder();
+        // Clean up our video element
+        const displayVideo = document.getElementById('mirror-webcam-display');
+        if (displayVideo && displayVideo.srcObject) {
+            displayVideo.srcObject = null;
         }
     },
     
