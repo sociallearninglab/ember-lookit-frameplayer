@@ -13,7 +13,7 @@ export default ExpFrameBaseComponent.extend(VideoRecord, FullScreen, {
     doUseCamera: true,
     
     // Internal properties for the component
-    timeRemaining: null,
+    timeRemaining: 180, // Set default directly
     timerStarted: false,
     timerInterval: null,
     audioPlayer: null,
@@ -25,13 +25,6 @@ export default ExpFrameBaseComponent.extend(VideoRecord, FullScreen, {
         const seconds = this.get('timeRemaining') % 60;
         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }),
-    
-    init() {
-        this._super(...arguments);
-        
-        // Initialize time from duration property
-        this.set('timeRemaining', this.get('duration'));
-    },
     
     didInsertElement() {
         this._super(...arguments);
@@ -178,6 +171,28 @@ export default ExpFrameBaseComponent.extend(VideoRecord, FullScreen, {
             type: 'string',
             default: 'Look who it is!',
             description: 'Text to display at the bottom of the mirror display'
+        },
+        
+        /**
+         * Text to display on the 'next frame' button
+         *
+         * @property {String} nextButtonText
+         * @default 'Next'
+         */
+        nextButtonText: {
+            type: 'string',
+            default: 'Next'
+        },
+        
+        /**
+         * Whether to show a 'previous' button
+         *
+         * @property {Boolean} showPreviousButton
+         * @default false
+         */
+        showPreviousButton: {
+            type: 'boolean',
+            default: false
         }
     },
     

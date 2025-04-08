@@ -1,19 +1,38 @@
-{{! exp-mirror-display template }}
+{{! exp-mirror-display template - based on working exp-lookit-webcam-display }}
 <div class="exp-mirror-display">
-    {{! Key element - this ID must match recorderElement in the component }}
-    <div id="recorder" class="mirror-container">
-        {{! Video recorder will be attached to this element automatically }}
-    </div>
-    
-    <div class="mirror-timer">
-        {{formattedTimeRemaining}}
-    </div>
-    
-    {{#if instructionText}}
-        <div class="mirror-instruction-text">
-            {{instructionText}}
+    <div class="row webcam-row">
+        <div class="row recorder-container">
+            <div id="recorder" class="recorder col-xs-12">
+                {{! Webcam will be attached here automatically by VideoRecord mixin }}
+            </div>
         </div>
-    {{/if}}
+    </div>
+    
+    <div class="row">
+        <div class="mirror-timer">
+            {{formattedTimeRemaining}}
+        </div>
+        
+        {{#if instructionText}}
+            <div class="mirror-instruction-text">
+                {{instructionText}}
+            </div>
+        {{/if}}
+    </div>
+    
+    <div class="row exp-mirror-controls">
+        <div class="col-sm-12 pull-down">
+            {{#if showPreviousButton}}
+                <button type="button" class="btn btn-default pull-left" {{ action "previous" }}>
+                    Previous
+                </button>
+            {{/if}}
+
+            <button type="button" id="nextbutton" class="btn btn-success pull-right" {{ action "proceed" }}>
+                {{nextButtonText}}
+            </button>
+        </div>
+    </div>
     
     {{#if showExitConfirmation}}
         <div class="mirror-exit-confirmation">
