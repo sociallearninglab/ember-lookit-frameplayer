@@ -1,152 +1,54 @@
 /* Custom styling for the mirror frame */
 .exp-lookit-mirror {
-    width: 100%;
-    height: 100vh;
-    background-color: white;
-    position: relative;
-    
-    /* Extend the existing webcam styling */
+    /* Make the webcam fill more of the screen */
     .webcam-row {
-        height: 80vh !important; /* Make webcam larger */
-        margin: 0 !important;
-        padding: 0 !important;
+        height: 70vh !important;
     }
     
+    /* Ensure recorder container has proper dimensions */
     .recorder-container {
         height: 100% !important;
-        width: 100% !important;
-        margin: 0 !important;
     }
     
+    /* Style the recorder element */
     #recorder {
         height: 100% !important;
+        background-color: black !important;
+    }
+    
+    /* Style all videos inside the recorder */
+    #recorder video {
+        transform: scaleX(-1) !important; /* Mirror effect */
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+    }
+    
+    /* Make the recorder take more space */
+    .recorder {
         width: 100% !important;
         max-width: none !important;
-        background-color: black !important;
-        
-        /* Mirror effect for video */
-        video {
-            transform: scaleX(-1) !important; /* Mirror effect */
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover !important;
-        }
     }
     
-    /* Hide text section */
-    .exp-text {
-        display: none !important;
-    }
-    
-    /* Put controls at bottom */
-    .exp-lookit-observation-controls {
-        position: absolute;
-        bottom: 20px;
-        left: 0;
-        width: 100%;
-        z-index: 10;
-    }
-    
-    /* Timer display */
-    .mirror-timer {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        background-color: rgba(0, 0, 0, 0.6);
-        color: white;
-        padding: 8px 15px;
-        border-radius: 5px;
-        font-size: 24px;
-        font-weight: bold;
-        z-index: 100;
-    }
-    
-    /* Instruction text */
-    .mirror-instruction-text {
-        position: absolute;
-        bottom: 80px; /* Above the controls */
-        left: 0;
-        width: 100%;
-        text-align: center;
-        color: white;
-        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-        font-size: 28px;
-        font-weight: bold;
-        padding: 15px;
-        z-index: 100;
-    }
-    
-    /* Exit confirmation dialog */
-    .mirror-exit-confirmation {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.7);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    }
-    
-    .mirror-exit-dialog {
-        background-color: white;
-        border: 2px solid #333;
-        border-radius: 10px;
-        padding: 25px;
-        text-align: center;
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-        max-width: 450px;
-        width: 80%;
-        
-        h3 {
-            margin-top: 0;
-            margin-bottom: 20px;
-            color: #333;
-            font-size: 24px;
-        }
-    }
-    
-    .mirror-button-container {
-        display: flex;
-        justify-content: space-around;
-        margin-top: 25px;
-    }
-    
-    .mirror-exit-yes, .mirror-exit-no {
-        padding: 12px 30px;
-        cursor: pointer;
-        border-radius: 5px;
-        border: none;
-        font-size: 18px;
-        font-weight: bold;
-    }
-    
-    .mirror-exit-yes {
-        background-color: #f44336;
-        color: white;
-    }
-    
-    .mirror-exit-no {
-        background-color: #4CAF50;
-        color: white;
+    /* Center and style title text */
+    .title-text {
+        font-size: 24px !important;
+        text-align: center !important;
     }
 }
 
-/* Make sure the mirror frame extends fully when in fullscreen mode */
+/* Fullscreen styles */
 :fullscreen .exp-lookit-mirror,
 .player-fullscreen .exp-lookit-mirror,
 .player-fullscreen-override .exp-lookit-mirror {
-    width: 100vw !important;
-    height: 100vh !important;
-    max-width: none !important;
-    margin: 0 !important;
-    
-    /* Ensure the webcam fills the screen in fullscreen mode */
     .webcam-row {
-        height: 90vh !important;
-        margin: 0 !important;
+        height: 80vh !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+    
+    /* Maximize the width */
+    .recorder-container, .recorder {
         width: 100% !important;
         max-width: none !important;
     }

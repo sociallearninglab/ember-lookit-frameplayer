@@ -194,4 +194,47 @@ div.lookit-frame {
         right: 0;
     }
 
+  /* Force video to fill the entire container */
+.recorder video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    transform: scaleX(-1) !important; /* Mirror effect */
+}
+
+/* Make sure the container takes full width */
+.recorder-container {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+/* Override the width: auto for recorder to ensure it fills the space */
+.recorder-container #recorder {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+/* Make the recorder background black instead of gray */
+.recorder {
+    background-color: black !important;
+}
+
+/* In fullscreen mode, maximize the recorder area */
+.player-fullscreen, .player-fullscreen-override {
+    .exp-lookit-webcam-display, .exp-lookit-mirror {
+        max-width: none !important;
+        width: 100vw !important;
+        
+        .webcam-row {
+            height: 80vh !important;
+            width: 100% !important;
+            margin: 0 !important;
+        }
+        
+        .recorder-container {
+            height: 100% !important;
+        }
+    }
+}
+
 }
