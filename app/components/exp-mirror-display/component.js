@@ -1,15 +1,19 @@
 import ExpFrameBaseComponent from '../exp-frame-base/component';
-import layout from './template';
-import FullScreen from '../../mixins/full-screen';
 import VideoRecord from '../../mixins/video-record';
+import FullScreen from '../../mixins/full-screen';
+import layout from './template';
 import Ember from 'ember';
 
-export default ExpFrameBaseComponent.extend(FullScreen, VideoRecord, {
+export default ExpFrameBaseComponent.extend(VideoRecord, FullScreen, {
     type: 'exp-mirror-display',
     layout: layout,
     
+    // This is important! It tells VideoRecord which element to attach the recorder to
+    recorderElement: '#recorder',
+    doUseCamera: true,
+    
     // Internal properties for the component
-    timeRemaining: 180, // Default 3 minutes in seconds
+    timeRemaining: null,
     timerStarted: false,
     timerInterval: null,
     audioPlayer: null,
@@ -22,9 +26,17 @@ export default ExpFrameBaseComponent.extend(FullScreen, VideoRecord, {
         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }),
     
-    // Lifecycle hooks
+    init() {
+        this._super(...arguments);
+        
+        // Initialize time from duration property
+        this.set('timeRemaining', this.get('duration'));
+    },
+    
     didInsertElement() {
         this._super(...arguments);
+        
+        console.log('EXP-MIRROR-DISPLAY: didInsertElement');
         
         // Setup keyboard listener for early exit
         this._setupKeyListener();
@@ -35,49 +47,15 @@ export default ExpFrameBaseComponent.extend(FullScreen, VideoRecord, {
             this._setupFullscreen();
         }
         
-        // Get access to the webcam video element for mirroring
-        this._setupWebcamDisplay();
-        
         // Start timer and audio
         this._startTimer();
         this._setupAudio();
     },
     
-    // Setup webcam display for mirroring
-    _setupWebcamDisplay() {
-        // Wait a moment for everything to initialize
-        setTimeout(() => {
-            try {
-                // If we have access to the recorder object
-                if (this.recorder && this.recorder.videoElement) {
-                    // Get the video element from the recorder
-                    const sourceVideo = this.recorder.videoElement;
-                    
-                    // Get our display video element
-                    const displayVideo = document.getElementById('mirror-webcam-display');
-                    
-                    if (displayVideo) {
-                        // Set the source to the recorder's stream
-                        if (sourceVideo.srcObject) {
-                            displayVideo.srcObject = sourceVideo.srcObject;
-                            console.log('Successfully mirrored webcam stream');
-                        } else {
-                            console.error('Source video has no srcObject');
-                        }
-                    } else {
-                        console.error('Could not find mirror-webcam-display element');
-                    }
-                } else {
-                    console.error('Recorder or videoElement not available');
-                }
-            } catch (e) {
-                console.error('Error setting up webcam display:', e);
-            }
-        }, 500);
-    },
-    
     willDestroyElement() {
         this._super(...arguments);
+        
+        console.log('EXP-MIRROR-DISPLAY: willDestroyElement');
         
         // Clean up
         this._stopTimer();
@@ -85,12 +63,6 @@ export default ExpFrameBaseComponent.extend(FullScreen, VideoRecord, {
         
         // Remove keyboard listener
         document.removeEventListener('keydown', this._boundKeyHandler);
-        
-        // Clean up our video element
-        const displayVideo = document.getElementById('mirror-webcam-display');
-        if (displayVideo && displayVideo.srcObject) {
-            displayVideo.srcObject = null;
-        }
     },
     
     // Private methods
@@ -132,6 +104,7 @@ export default ExpFrameBaseComponent.extend(FullScreen, VideoRecord, {
     _setupAudio() {
         const songUrl = this.get('songUrl');
         if (songUrl) {
+            console.log('Setting up audio with URL:', songUrl);
             this.audioPlayer = new Audio(songUrl);
             this.audioPlayer.loop = true;
             this.audioPlayer.play().catch(e => console.error("Audio error:", e));
@@ -148,8 +121,13 @@ export default ExpFrameBaseComponent.extend(FullScreen, VideoRecord, {
     _finishTrial() {
         this._stopTimer();
         this._stopAudio();
+        
+        // Calculate actual duration viewed
+        const completedDuration = this.get('duration') - this.get('timeRemaining');
+        this.set('completedDuration', completedDuration);
+        
         this._exitFullscreen();
-        this.send('next');
+        this.send('proceed');
     },
     
     // Frame schema properties
@@ -176,18 +154,6 @@ export default ExpFrameBaseComponent.extend(FullScreen, VideoRecord, {
             type: 'string',
             default: 'https://github.com/sociallearninglab/baby_view_baby/raw/refs/heads/main/mp3/song.mp3',
             description: 'URL for the background music'
-        },
-        
-        /**
-         * Whether to record video during this frame
-         *
-         * @property {Boolean} doRecording
-         * @default true
-         */
-        doRecording: {
-            type: 'boolean',
-            default: true,
-            description: 'Whether to record video during this frame'
         },
         
         /**
@@ -219,18 +185,19 @@ export default ExpFrameBaseComponent.extend(FullScreen, VideoRecord, {
         name: 'Mirror Display',
         description: 'A frame that displays the webcam feed to the child, effectively functioning as a mirror.',
         data: {
-            /**
-             * Parameters captured and sent to the server
-             * 
-             * @method serializeContent
-             * @param {Number} completedDuration How long the mirror was displayed before proceeding
-             */
             type: 'object',
             properties: {
+                videoId: {
+                    type: 'string'
+                },
+                videoList: {
+                    type: 'list'
+                },
                 completedDuration: {
                     type: 'number'
                 }
-            }
+            },
+            required: ['videoId']
         }
     },
     
@@ -246,12 +213,12 @@ export default ExpFrameBaseComponent.extend(FullScreen, VideoRecord, {
             this.set('showExitConfirmation', false);
         },
         
-        finish() {
-            // Calculate actual duration viewed
-            const completedDuration = this.get('duration') - this.get('timeRemaining');
-            this.set('completedDuration', completedDuration);
-            
-            this._finishTrial();
+        // Important: Follow the same pattern as the original webcam-display
+        proceed() {
+            this.stopRecorder().finally(() => {
+                this.destroyRecorder();
+                this.send('next');
+            });
         }
     }
 });

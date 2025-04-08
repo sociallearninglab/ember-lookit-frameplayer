@@ -1,18 +1,19 @@
 {{! exp-mirror-display template }}
 <div class="exp-mirror-display">
-    <div class="mirror-container">
-        <video id="mirror-webcam-display" class="webcam-display" autoplay playsinline muted={{true}}></video>
-        
-        <div class="mirror-timer">
-            {{formattedTimeRemaining}}
-        </div>
-        
-        {{#if instructionText}}
-            <div class="mirror-instruction-text">
-                {{instructionText}}
-            </div>
-        {{/if}}
+    {{! Key element - this ID must match recorderElement in the component }}
+    <div id="recorder" class="mirror-container">
+        {{! Video recorder will be attached to this element automatically }}
     </div>
+    
+    <div class="mirror-timer">
+        {{formattedTimeRemaining}}
+    </div>
+    
+    {{#if instructionText}}
+        <div class="mirror-instruction-text">
+            {{instructionText}}
+        </div>
+    {{/if}}
     
     {{#if showExitConfirmation}}
         <div class="mirror-exit-confirmation">

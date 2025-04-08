@@ -1,5 +1,3 @@
-@import "components/exp-mirror-display";
-
 .exp-mirror-display {
     width: 100%;
     height: 100vh;
@@ -7,34 +5,23 @@
     position: relative;
     overflow: hidden;
     
+    #recorder {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        
+        /* Make sure the automatically attached video is mirrored */
+        video {
+            transform: scaleX(-1); /* Mirror effect */
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    }
+    
     .mirror-container {
         width: 100%;
         height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .webcam-display {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transform: scaleX(-1); /* Mirror effect */
-    }
-    
-    .mirror-no-webcam {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background-color: #f0f0f0;
-        
-        p {
-            font-size: 24px;
-            color: #333;
-        }
     }
     
     .mirror-timer {
