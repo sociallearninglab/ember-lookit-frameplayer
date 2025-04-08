@@ -2,8 +2,7 @@ import ExpLookitWebcamDisplay from '../exp-lookit-webcam-display/component';
 import Ember from 'ember';
 
 /**
- * A frame that extends exp-lookit-webcam-display to add mirror functionality
- * and background music.
+ * A frame that extends exp-lookit-webcam-display but tries an iframe approach to show the mirrored camera
  *
  * @class Exp-lookit-mirror
  * @extends Exp-lookit-webcam-display
@@ -21,14 +20,11 @@ export default ExpLookitWebcamDisplay.extend({
         
         console.log('EXP-LOOKIT-MIRROR: didInsertElement');
         
-        // Add mirror effect with multiple attempts
-        this._setupMirrorEffect();
+        // In addition to whatever the parent frame does, inject our own video mirror
+        this._injectMirror();
         
         // Play background music
         this._setupAudio();
-        
-        // Apply direct recorder styling for maximum compatibility
-        this._applyDirectStyles();
     },
     
     willDestroyElement() {
@@ -36,84 +32,77 @@ export default ExpLookitWebcamDisplay.extend({
         
         console.log('EXP-LOOKIT-MIRROR: willDestroyElement');
         
-        // Clean up audio
+        // Clean up
         this._stopAudio();
+        
+        // Remove our injected mirror
+        const mirrorElem = document.getElementById('direct-mirror-container');
+        if (mirrorElem) {
+            mirrorElem.remove();
+        }
     },
     
-    // Apply direct styles to ensure recorder is visible
-    _applyDirectStyles() {
-        // Apply styles to recorder container
+    // Inject our own mirror element directly on top of the recorder
+    _injectMirror() {
+        // Find recorder container to position our mirror
         const recorderContainer = document.querySelector('.recorder-container');
-        if (recorderContainer) {
-            Object.assign(recorderContainer.style, {
-                width: '100%',
-                maxWidth: 'none',
-                height: '100%'
-            });
+        if (!recorderContainer) {
+            console.log('Could not find recorder container for mirror injection');
+            return;
         }
         
-        // Apply styles to recorder
-        const recorder = document.getElementById('recorder');
-        if (recorder) {
-            Object.assign(recorder.style, {
-                width: '100%',
-                maxWidth: 'none',
-                height: '100%',
-                backgroundColor: 'black'
-            });
+        console.log('Found recorder container, injecting mirror');
+        
+        // Create container for our mirror
+        const mirrorContainer = document.createElement('div');
+        mirrorContainer.id = 'direct-mirror-container';
+        Object.assign(mirrorContainer.style, {
+            position: 'absolute',
+            top: '0',
+            left: '0',
+            width: '100%',
+            height: '100%',
+            zIndex: '100',
+            backgroundColor: 'black'
+        });
+        
+        // Create video element for our mirror
+        const mirrorVideo = document.createElement('video');
+        mirrorVideo.id = 'direct-mirror-video';
+        mirrorVideo.autoplay = true;
+        mirrorVideo.muted = true;
+        mirrorVideo.playsinline = true;
+        Object.assign(mirrorVideo.style, {
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transform: 'scaleX(-1)'
+        });
+        
+        // Add video to container
+        mirrorContainer.appendChild(mirrorVideo);
+        
+        // Add container to the page (as first child of recorder container)
+        if (recorderContainer.firstChild) {
+            recorderContainer.insertBefore(mirrorContainer, recorderContainer.firstChild);
+        } else {
+            recorderContainer.appendChild(mirrorContainer);
         }
         
-        // Apply styles to webcam row
-        const webcamRow = document.querySelector('.webcam-row');
-        if (webcamRow) {
-            Object.assign(webcamRow.style, {
-                height: '80vh',
-                width: '100%',
-                margin: '0'
+        // Get user media for our mirror
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                console.log('Got camera stream for direct mirror');
+                mirrorVideo.srcObject = stream;
+                mirrorVideo.play()
+                    .then(() => console.log('Direct mirror playing'))
+                    .catch(e => console.error('Error playing direct mirror:', e));
+            })
+            .catch(err => {
+                console.error('Error getting camera for direct mirror:', err);
+                // If we fail, remove our container so it doesn't block the view
+                mirrorContainer.remove();
             });
-        }
-    },
-    
-    // Setup mirror effect
-    _setupMirrorEffect() {
-        // Try repeatedly to find and mirror the video
-        const attemptMirror = () => {
-            const videoElements = document.querySelectorAll('#recorder video');
-            console.log(`Found ${videoElements.length} video elements`);
-            
-            if (videoElements.length) {
-                videoElements.forEach(video => {
-                    // Apply mirror effect and ensure visibility
-                    Object.assign(video.style, {
-                        transform: 'scaleX(-1)',
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover'
-                    });
-                    
-                    console.log('Applied mirror effect to video');
-                });
-                return true;
-            }
-            return false;
-        };
-        
-        // Try immediately
-        if (!attemptMirror()) {
-            // Try after a delay and set up additional attempts
-            setTimeout(() => {
-                attemptMirror();
-                // Set up recurring attempts
-                const interval = setInterval(() => {
-                    if (attemptMirror()) {
-                        clearInterval(interval);
-                    }
-                }, 500);
-                
-                // Stop trying after 10 seconds
-                setTimeout(() => clearInterval(interval), 10000);
-            }, 500);
-        }
     },
     
     _setupAudio() {
