@@ -1,5 +1,7 @@
-{{! exp-mirror-display template - based on working exp-lookit-webcam-display }}
-<div class="exp-mirror-display">
+{{! exp-lookit-mirror template - extends webcam-display but adds mirror capability }}
+{{! We're using the parent template directly, which will handle the recorder and buttons }}
+{{! Any custom UI elements like the timer are added dynamically in the component }}
+<div class="exp-lookit-mirror">
     <div class="row webcam-row">
         <div class="row recorder-container">
             <div id="recorder" class="recorder col-xs-12">
@@ -8,19 +10,15 @@
         </div>
     </div>
     
-    <div class="row">
-        <div class="mirror-timer">
-            {{formattedTimeRemaining}}
+    <div class="row exp-text">
+        <div class="text-container">
+            {{#each blocks as |block idx|}}
+                {{exp-text-block block=block}}
+            {{/each}}
         </div>
-        
-        {{#if instructionText}}
-            <div class="mirror-instruction-text">
-                {{instructionText}}
-            </div>
-        {{/if}}
     </div>
     
-    <div class="row exp-mirror-controls">
+    <div class="row exp-lookit-observation-controls">
         <div class="col-sm-12 pull-down">
             {{#if showPreviousButton}}
                 <button type="button" class="btn btn-default pull-left" {{ action "previous" }}>
@@ -33,16 +31,16 @@
             </button>
         </div>
     </div>
-    
-    {{#if showExitConfirmation}}
-        <div class="mirror-exit-confirmation">
-            <div class="mirror-exit-dialog">
-                <h3>Are you sure you want to exit?</h3>
-                <div class="mirror-button-container">
-                    <button class="mirror-exit-yes" {{action "confirmExit"}}>Yes</button>
-                    <button class="mirror-exit-no" {{action "cancelExit"}}>No</button>
-                </div>
+</div>
+
+{{#if showExitConfirmation}}
+    <div class="mirror-exit-confirmation">
+        <div class="mirror-exit-dialog">
+            <h3>Are you sure you want to exit?</h3>
+            <div class="mirror-button-container">
+                <button class="mirror-exit-yes" {{action "confirmExit"}}>Yes</button>
+                <button class="mirror-exit-no" {{action "cancelExit"}}>No</button>
             </div>
         </div>
-    {{/if}}
-</div>
+    </div>
+{{/if}}

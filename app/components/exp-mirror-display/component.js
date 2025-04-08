@@ -1,23 +1,23 @@
-import ExpFrameBaseComponent from '../exp-frame-base/component';
-import VideoRecord from '../../mixins/video-record';
-import FullScreen from '../../mixins/full-screen';
-import layout from './template';
+import ExpLookitWebcamDisplay from '../exp-lookit-webcam-display/component';
 import Ember from 'ember';
 
-export default ExpFrameBaseComponent.extend(VideoRecord, FullScreen, {
-    type: 'exp-mirror-display',
-    layout: layout,
+/**
+ * A frame that extends exp-lookit-webcam-display to add mirror functionality,
+ * background music, timer, and automatic fullscreen.
+ *
+ * @class Exp-lookit-mirror
+ * @extends Exp-lookit-webcam-display
+ */
+
+export default ExpLookitWebcamDisplay.extend({
+    type: 'exp-lookit-mirror',
     
-    // This is important! It tells VideoRecord which element to attach the recorder to
-    recorderElement: '#recorder',
-    doUseCamera: true,
-    
-    // Internal properties for the component
-    timeRemaining: 180, // Set default directly
+    // Internal properties
+    musicPlaying: false,
     timerStarted: false,
     timerInterval: null,
+    timeRemaining: null,
     audioPlayer: null,
-    showExitConfirmation: false,
     
     // Properties for display
     formattedTimeRemaining: Ember.computed('timeRemaining', function() {
@@ -26,36 +26,77 @@ export default ExpFrameBaseComponent.extend(VideoRecord, FullScreen, {
         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }),
     
+    init() {
+        this._super(...arguments);
+        this.set('timeRemaining', this.get('duration'));
+    },
+    
     didInsertElement() {
         this._super(...arguments);
         
-        console.log('EXP-MIRROR-DISPLAY: didInsertElement');
+        console.log('EXP-LOOKIT-MIRROR: didInsertElement');
         
-        // Setup keyboard listener for early exit
+        // Add mirror effect and setup timer display
+        Ember.run.later(() => {
+            // Add mirror effect to video
+            const videoElements = Ember.$('#recorder video');
+            if (videoElements.length) {
+                videoElements.css('transform', 'scaleX(-1)');
+                console.log('Added mirror effect to video');
+            } else {
+                console.log('No video elements found to mirror');
+            }
+            
+            // Add timer display
+            const timerElement = Ember.$('<div class="mirror-timer"></div>');
+            timerElement.text(this.get('formattedTimeRemaining'));
+            Ember.$('.exp-lookit-mirror').append(timerElement);
+            
+            // Start timer
+            this._startTimer();
+            
+            // Add instruction text if provided
+            if (this.get('instructionText')) {
+                const textElement = Ember.$('<div class="mirror-instruction-text"></div>');
+                textElement.text(this.get('instructionText'));
+                Ember.$('.exp-lookit-mirror').append(textElement);
+            }
+        }, 500);
+        
+        // Setup exit key listener
         this._setupKeyListener();
         
-        // Start in fullscreen if requested
-        if (this.get('displayFullscreen') || this.get('displayFullscreenOverride')) {
-            this.set('isFullscreen', true);
-            this._setupFullscreen();
-        }
-        
-        // Start timer and audio
-        this._startTimer();
+        // Play background music
         this._setupAudio();
+        
+        // Force fullscreen if requested
+        if (this.get('forceFullscreen')) {
+            Ember.run.later(() => {
+                document.documentElement.requestFullscreen().catch(e => {
+                    console.error('Error attempting to enable fullscreen:', e);
+                });
+            }, 1000);
+        }
     },
     
     willDestroyElement() {
         this._super(...arguments);
-        
-        console.log('EXP-MIRROR-DISPLAY: willDestroyElement');
         
         // Clean up
         this._stopTimer();
         this._stopAudio();
         
         // Remove keyboard listener
-        document.removeEventListener('keydown', this._boundKeyHandler);
+        if (this._boundKeyHandler) {
+            document.removeEventListener('keydown', this._boundKeyHandler);
+        }
+        
+        // Exit fullscreen if we're in it
+        if (document.fullscreenElement) {
+            document.exitFullscreen().catch(e => {
+                console.error('Error attempting to exit fullscreen:', e);
+            });
+        }
     },
     
     // Private methods
@@ -69,6 +110,36 @@ export default ExpFrameBaseComponent.extend(VideoRecord, FullScreen, {
         if (e.key === 'e' || e.key === 'E') {
             e.preventDefault();
             this.set('showExitConfirmation', true);
+            
+            // Create exit confirmation dialog if it doesn't exist
+            if (!document.querySelector('.mirror-exit-confirmation')) {
+                const dialog = Ember.$(`
+                    <div class="mirror-exit-confirmation">
+                        <div class="mirror-exit-dialog">
+                            <h3>Are you sure you want to exit?</h3>
+                            <div class="mirror-button-container">
+                                <button class="mirror-exit-yes">Yes</button>
+                                <button class="mirror-exit-no">No</button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                
+                // Attach event handlers
+                dialog.find('.mirror-exit-yes').on('click', () => {
+                    this.set('showExitConfirmation', false);
+                    this._finishTrial();
+                });
+                
+                dialog.find('.mirror-exit-no').on('click', () => {
+                    this.set('showExitConfirmation', false);
+                    dialog.hide();
+                });
+                
+                Ember.$('.exp-lookit-mirror').append(dialog);
+            } else {
+                Ember.$('.mirror-exit-confirmation').show();
+            }
         }
     },
     
@@ -82,6 +153,8 @@ export default ExpFrameBaseComponent.extend(VideoRecord, FullScreen, {
                     this._finishTrial();
                 } else {
                     this.set('timeRemaining', timeRemaining - 1);
+                    // Update timer display
+                    Ember.$('.mirror-timer').text(this.get('formattedTimeRemaining'));
                 }
             }, 1000);
         }
@@ -100,6 +173,7 @@ export default ExpFrameBaseComponent.extend(VideoRecord, FullScreen, {
             console.log('Setting up audio with URL:', songUrl);
             this.audioPlayer = new Audio(songUrl);
             this.audioPlayer.loop = true;
+            this.audioPlayer.volume = 0.7; // 70% volume
             this.audioPlayer.play().catch(e => console.error("Audio error:", e));
         }
     },
@@ -119,12 +193,15 @@ export default ExpFrameBaseComponent.extend(VideoRecord, FullScreen, {
         const completedDuration = this.get('duration') - this.get('timeRemaining');
         this.set('completedDuration', completedDuration);
         
-        this._exitFullscreen();
+        // Use the parent's proceed action
         this.send('proceed');
     },
     
-    // Frame schema properties
+    // Add our custom properties to the schema
     frameSchemaProperties: {
+        // Include all properties from parent
+        ...ExpLookitWebcamDisplay.prototype.frameSchemaProperties,
+        
         /**
          * Duration of the mirror display in seconds
          *
@@ -141,24 +218,21 @@ export default ExpFrameBaseComponent.extend(VideoRecord, FullScreen, {
          * URL for the background music
          *
          * @property {String} songUrl
-         * @default https://github.com/sociallearninglab/baby_view_baby/raw/refs/heads/main/mp3/song.mp3
          */
         songUrl: {
             type: 'string',
-            default: 'https://github.com/sociallearninglab/baby_view_baby/raw/refs/heads/main/mp3/song.mp3',
-            description: 'URL for the background music'
+            description: 'URL for background music to play during display'
         },
         
         /**
-         * Whether to display this frame in fullscreen mode
-         *
-         * @property {Boolean} displayFullscreen
+         * Whether to force fullscreen on load
+         * @property {Boolean} forceFullscreen
          * @default true
          */
-        displayFullscreen: {
+        forceFullscreen: {
             type: 'boolean',
             default: true,
-            description: 'Whether to display this frame in fullscreen mode'
+            description: 'Whether to force fullscreen on load'
         },
         
         /**
@@ -171,69 +245,23 @@ export default ExpFrameBaseComponent.extend(VideoRecord, FullScreen, {
             type: 'string',
             default: 'Look who it is!',
             description: 'Text to display at the bottom of the mirror display'
-        },
-        
-        /**
-         * Text to display on the 'next frame' button
-         *
-         * @property {String} nextButtonText
-         * @default 'Next'
-         */
-        nextButtonText: {
-            type: 'string',
-            default: 'Next'
-        },
-        
-        /**
-         * Whether to show a 'previous' button
-         *
-         * @property {Boolean} showPreviousButton
-         * @default false
-         */
-        showPreviousButton: {
-            type: 'boolean',
-            default: false
         }
     },
     
     meta: {
         name: 'Mirror Display',
-        description: 'A frame that displays the webcam feed to the child, effectively functioning as a mirror.',
+        description: 'Extends webcam display to add mirror effect, timer, music, and other features',
         data: {
             type: 'object',
             properties: {
-                videoId: {
-                    type: 'string'
-                },
-                videoList: {
-                    type: 'list'
-                },
+                // Include all data properties from parent
+                ...ExpLookitWebcamDisplay.prototype.meta.data.properties,
+                
+                // Add our new property
                 completedDuration: {
                     type: 'number'
                 }
-            },
-            required: ['videoId']
-        }
-    },
-    
-    // Actions
-    actions: {
-        // Handle early exit confirmation
-        confirmExit() {
-            this.set('showExitConfirmation', false);
-            this._finishTrial();
-        },
-        
-        cancelExit() {
-            this.set('showExitConfirmation', false);
-        },
-        
-        // Important: Follow the same pattern as the original webcam-display
-        proceed() {
-            this.stopRecorder().finally(() => {
-                this.destroyRecorder();
-                this.send('next');
-            });
+            }
         }
     }
 });
