@@ -2,7 +2,7 @@ import ExpLookitWebcamDisplay from '../exp-lookit-webcam-display/component';
 import Ember from 'ember';
 
 /**
- * A frame that extends exp-lookit-webcam-display but tries an iframe approach to show the mirrored camera
+ * A frame that extends exp-lookit-webcam-display but adds fullscreen mirrored camera and background music
  *
  * @class Exp-lookit-mirror
  * @extends Exp-lookit-webcam-display
@@ -10,50 +10,48 @@ import Ember from 'ember';
 
 export default ExpLookitWebcamDisplay.extend({
     type: 'exp-lookit-mirror',
-    
-    // Internal properties
+
     musicPlaying: false,
     audioPlayer: null,
-    
+
     didInsertElement() {
         this._super(...arguments);
-        
-        console.log('EXP-LOOKIT-MIRROR: didInsertElement');
-        
-        // In addition to whatever the parent frame does, inject our own video mirror
+        console.log('[MirrorFrame] didInsertElement triggered');
+
         this._injectMirror();
-        
-        // Play background music
         this._setupAudio();
     },
-    
+
     willDestroyElement() {
         this._super(...arguments);
-        
-        console.log('EXP-LOOKIT-MIRROR: willDestroyElement');
-        
-        // Clean up
+        console.log('[MirrorFrame] willDestroyElement triggered');
+
         this._stopAudio();
-        
-        // Remove our injected mirror
+
         const mirrorElem = document.getElementById('direct-mirror-container');
         if (mirrorElem) {
+            console.log('[MirrorFrame] Removing mirror container');
             mirrorElem.remove();
+        } else {
+            console.warn('[MirrorFrame] No mirror container found to remove');
         }
     },
-    
-    // Inject our own mirror element directly on top of the recorder
-    _injectMirror() {
-        // Find recorder container to position our mirror
+
+    _injectMirror(retries = 5) {
+        console.log(`[MirrorFrame] Attempting to inject mirror, retries left: ${retries}`);
         const recorderContainer = document.querySelector('.recorder-container');
         if (!recorderContainer) {
-            console.log('Could not find recorder container for mirror injection');
+            console.warn('[MirrorFrame] Recorder container not found');
+            if (retries > 0) {
+                setTimeout(() => this._injectMirror(retries - 1), 200);
+            } else {
+                console.error('[MirrorFrame] Failed to find recorder container after retries');
+            }
             return;
         }
-        
-        console.log('Found recorder container, injecting mirror');
-        
-        // Create container for our mirror
+
+        console.log('[MirrorFrame] Recorder container found');
+
         const mirrorContainer = document.createElement('div');
         mirrorContainer.id = 'direct-mirror-container';
         Object.assign(mirrorContainer.style, {
@@ -62,77 +60,67 @@ export default ExpLookitWebcamDisplay.extend({
             left: '0',
             width: '100%',
             height: '100%',
-            zIndex: '100',
+            zIndex: '9999',
             backgroundColor: 'black'
         });
-        
-        // Create video element for our mirror
+
         const mirrorVideo = document.createElement('video');
         mirrorVideo.id = 'direct-mirror-video';
         mirrorVideo.autoplay = true;
         mirrorVideo.muted = true;
-        mirrorVideo.playsinline = true;
+        mirrorVideo.playsInline = true;
         Object.assign(mirrorVideo.style, {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
             transform: 'scaleX(-1)'
         });
-        
-        // Add video to container
+
         mirrorContainer.appendChild(mirrorVideo);
-        
-        // Add container to the page (as first child of recorder container)
-        if (recorderContainer.firstChild) {
-            recorderContainer.insertBefore(mirrorContainer, recorderContainer.firstChild);
-        } else {
-            recorderContainer.appendChild(mirrorContainer);
-        }
-        
-        // Get user media for our mirror
+        recorderContainer.insertBefore(mirrorContainer, recorderContainer.firstChild);
+        console.log('[MirrorFrame] Mirror video element injected');
+
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(stream => {
-                console.log('Got camera stream for direct mirror');
+                console.log('[MirrorFrame] Camera stream obtained');
                 mirrorVideo.srcObject = stream;
                 mirrorVideo.play()
-                    .then(() => console.log('Direct mirror playing'))
-                    .catch(e => console.error('Error playing direct mirror:', e));
+                    .then(() => console.log('[MirrorFrame] Mirror video playing'))
+                    .catch(e => console.error('[MirrorFrame] Error playing mirror video:', e));
             })
             .catch(err => {
-                console.error('Error getting camera for direct mirror:', err);
-                // If we fail, remove our container so it doesn't block the view
+                console.error('[MirrorFrame] Error accessing camera:', err);
                 mirrorContainer.remove();
             });
     },
-    
+
     _setupAudio() {
         const songUrl = this.get('songUrl');
         if (songUrl) {
-            console.log('Setting up audio with URL:', songUrl);
+            console.log('[MirrorFrame] Setting up audio with URL:', songUrl);
             this.audioPlayer = new Audio(songUrl);
             this.audioPlayer.loop = true;
-            this.audioPlayer.volume = 0.7; // 70% volume
-            this.audioPlayer.play().catch(e => console.error("Audio error:", e));
+            this.audioPlayer.volume = 0.7;
+            this.audioPlayer.play()
+                .then(() => console.log('[MirrorFrame] Audio started successfully'))
+                .catch(e => console.error('[MirrorFrame] Audio play error:', e));
+        } else {
+            console.log('[MirrorFrame] No songUrl provided; skipping audio setup');
         }
     },
-    
+
     _stopAudio() {
         if (this.audioPlayer) {
+            console.log('[MirrorFrame] Stopping and cleaning up audio');
             this.audioPlayer.pause();
             this.audioPlayer = null;
+        } else {
+            console.log('[MirrorFrame] No audio player to stop');
         }
     },
-    
-    // Add our custom properties to the schema
+
     frameSchemaProperties: {
-        // Include all properties from parent
         ...ExpLookitWebcamDisplay.prototype.frameSchemaProperties,
-        
-        /**
-         * URL for the background music
-         *
-         * @property {String} songUrl
-         */
         songUrl: {
             type: 'string',
             description: 'URL for background music to play during display'
