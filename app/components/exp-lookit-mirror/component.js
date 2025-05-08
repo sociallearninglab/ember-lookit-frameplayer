@@ -80,18 +80,30 @@ export default ExpLookitWebcamDisplay.extend({
         recorderContainer.insertBefore(mirrorContainer, recorderContainer.firstChild);
         console.log('[MirrorFrame] Mirror video element injected');
 
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                console.log('[MirrorFrame] Camera stream obtained');
-                mirrorVideo.srcObject = stream;
-                mirrorVideo.play()
-                    .then(() => console.log('[MirrorFrame] Mirror video playing'))
-                    .catch(e => console.error('[MirrorFrame] Error playing mirror video:', e));
-            })
-            .catch(err => {
-                console.error('[MirrorFrame] Error accessing camera:', err);
-                mirrorContainer.remove();
+        const sessionRecorder = this.get('sessionRecorder');
+
+        if (sessionRecorder && sessionRecorder.stream) {
+            console.log('[MirrorFrame] Using sessionRecorder stream');
+            mirrorVideo.srcObject = sessionRecorder.stream;
+            mirrorVideo.play().then(() => {
+                console.log('[MirrorFrame] Mirror video playing from existing stream');
+            }).catch(e => {
+                console.error('[MirrorFrame] Error playing video from sessionRecorder stream:', e);
             });
+        } else {
+            console.warn('[MirrorFrame] sessionRecorder stream not found. Trying direct getUserMedia.');
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    mirrorVideo.srcObject = stream;
+                    mirrorVideo.play()
+                        .then(() => console.log('[MirrorFrame] Mirror video playing from direct stream'))
+                        .catch(e => console.error('[MirrorFrame] Error playing direct mirror video:', e));
+                })
+                .catch(err => {
+                    console.error('[MirrorFrame] Failed to get camera stream:', err);
+                    mirrorContainer.remove();
+                });
+        }
     },
 
     _setupAudio() {
