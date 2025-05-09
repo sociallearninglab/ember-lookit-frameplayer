@@ -27,7 +27,7 @@ export default ExpLookitWebcamDisplay.extend({
                 overflow: 'hidden',
                 width: '100vw',
                 height: '100vh',
-                zIndex: '1'
+                position: 'relative' // Establish a stacking context
             });
         }
 
@@ -75,7 +75,8 @@ export default ExpLookitWebcamDisplay.extend({
             height: '100%',
             margin: '0',
             padding: '0',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            zIndex: '1' // Lower z-index to ensure controls remain on top
         });
 
         const mirrorVideo = document.createElement('video');
@@ -155,6 +156,11 @@ export default ExpLookitWebcamDisplay.extend({
                 this.destroyRecorder();
                 this.send('next');
             });
+        },
+
+        // Maps the finish action from your template to proceed
+        finish() {
+            this.send('proceed');
         }
     },
 
@@ -176,3 +182,4 @@ export default ExpLookitWebcamDisplay.extend({
         }
     }
 });
+
