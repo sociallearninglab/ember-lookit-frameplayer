@@ -40,6 +40,18 @@ export default ExpLookitWebcamDisplay.extend({
         console.log('[MirrorFrame] willDestroyElement triggered');
 
         this._stopAudio();
+        
+        // Clean up direct stream if we created one
+        if (this.get('directStream')) {
+            console.log('[MirrorFrame] Stopping direct camera stream');
+            try {
+                const stream = this.get('directStream');
+                const tracks = stream.getTracks();
+                tracks.forEach(track => track.stop());
+            } catch (e) {
+                console.error('[MirrorFrame] Error stopping direct stream:', e);
+            }
+        }
 
         const mirrorElem = document.getElementById('direct-mirror-container');
         if (mirrorElem) {
@@ -116,6 +128,9 @@ export default ExpLookitWebcamDisplay.extend({
                     mirrorVideo.play()
                         .then(() => console.log('[MirrorFrame] Mirror video playing from direct stream'))
                         .catch(e => console.error('[MirrorFrame] Error playing direct mirror video:', e));
+                    
+                    // Store this stream for cleanup
+                    this.set('directStream', stream);
                 })
                 .catch(err => {
                     console.error('[MirrorFrame] Failed to get camera stream:', err);
@@ -150,17 +165,21 @@ export default ExpLookitWebcamDisplay.extend({
     },
 
     actions: {
-        proceed() {
-            console.log('[MirrorFrame] Proceed button clicked');
-            this.stopRecorder().finally(() => {
-                this.destroyRecorder();
-                this.send('next');
-            });
-        },
-
-        // Maps the finish action from your template to proceed
         finish() {
-            this.send('proceed');
+            console.log('[MirrorFrame] Finish button clicked');
+            if (this.get('doRecording')) {
+                this.stopRecorder().finally(() => {
+                    this.destroyRecorder();
+                    this.send('next');
+                });
+            } else {
+                this.send('next');
+            }
+        },
+        
+        // For backward compatibility
+        proceed() {
+            this.send('finish');
         }
     },
 
@@ -182,4 +201,5 @@ export default ExpLookitWebcamDisplay.extend({
         }
     }
 });
+
 
