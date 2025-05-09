@@ -18,6 +18,19 @@ export default ExpLookitWebcamDisplay.extend({
         this._super(...arguments);
         console.log('[MirrorFrame] didInsertElement triggered');
 
+        // Remove white borders by enforcing full-bleed layout
+        const container = document.querySelector('.exp-lookit-mirror');
+        if (container) {
+            Object.assign(container.style, {
+                margin: '0',
+                padding: '0',
+                overflow: 'hidden',
+                width: '100vw',
+                height: '100vh',
+                backgroundColor: 'black'
+            });
+        }
+
         this._injectMirror();
         this._setupAudio();
     },
@@ -61,7 +74,10 @@ export default ExpLookitWebcamDisplay.extend({
             width: '100%',
             height: '100%',
             zIndex: '9999',
-            backgroundColor: 'black'
+            backgroundColor: 'black',
+            margin: '0',
+            padding: '0',
+            overflow: 'hidden'
         });
 
         const mirrorVideo = document.createElement('video');
@@ -73,7 +89,10 @@ export default ExpLookitWebcamDisplay.extend({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            transform: 'scaleX(-1)'
+            transform: 'scaleX(-1)',
+            display: 'block',
+            margin: '0',
+            padding: '0'
         });
 
         mirrorContainer.appendChild(mirrorVideo);
@@ -131,11 +150,31 @@ export default ExpLookitWebcamDisplay.extend({
         }
     },
 
+    actions: {
+        proceed() {
+            console.log('[MirrorFrame] Proceed button clicked');
+            this.stopRecorder().finally(() => {
+                this.destroyRecorder();
+                this.send('next');
+            });
+        }
+    },
+
     frameSchemaProperties: {
         ...ExpLookitWebcamDisplay.prototype.frameSchemaProperties,
         songUrl: {
             type: 'string',
             description: 'URL for background music to play during display'
+        },
+        nextButtonText: {
+            type: 'string',
+            default: 'Next',
+            description: 'Text to display on the Next button'
+        },
+        showPreviousButton: {
+            type: 'boolean',
+            default: false,
+            description: 'Whether to show a previous button'
         }
     }
 });
