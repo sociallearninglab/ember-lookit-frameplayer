@@ -27,7 +27,6 @@ export default ExpLookitWebcamDisplay.extend({
                 overflow: 'hidden',
                 width: '100vw',
                 height: '100vh',
-                backgroundColor: 'black'
             });
         }
 

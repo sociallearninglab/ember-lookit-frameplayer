@@ -18,6 +18,7 @@
         </div>
     </div>
     
+   {{#unless autoProceed}}
     <div class="row exp-lookit-observation-controls">
         <div class="col-sm-12 pull-down">
             {{#if showPreviousButton}}
@@ -26,12 +27,12 @@
                 </button>
             {{/if}}
 
-            <button type="button" id="nextbutton" class="btn btn-success pull-right" {{ action "proceed" }}>
-                {{nextButtonText}}
+            <button type="button" id="nextbutton" class="btn btn-success pull-right" {{ action "finish" }}>
+                {{nextButtonText}} <i class="fa fa-arrow-right"></i>
             </button>
         </div>
     </div>
-</div>
+{{/unless}}
 
 {{#if showExitConfirmation}}
     <div class="mirror-exit-confirmation">
