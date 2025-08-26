@@ -1,205 +1,162 @@
+// component.js
+
 import ExpLookitWebcamDisplay from '../exp-lookit-webcam-display/component';
-import Ember from 'ember';
+import { on } from '@ember/object/evented';
+import layout from './template'; // Import the template layout
 
 /**
- * A frame that extends exp-lookit-webcam-display but adds fullscreen mirrored camera and background music
+ * A frame that extends exp-lookit-webcam-display but adds a fullscreen mirrored camera,
+ * background music, a countdown timer, and an early exit option.
  *
  * @class Exp-lookit-mirror
  * @extends Exp-lookit-webcam-display
  */
 
 export default ExpLookitWebcamDisplay.extend({
+    layout, // Use the imported layout
     type: 'exp-lookit-mirror',
 
-    musicPlaying: false,
+    // Properties for timer and early exit
+    timer: null,
+    timeLeft: 0,
+    showExitConfirmation: false,
+
+    // Audio player property
     audioPlayer: null,
 
+    // Define all parameters for this frame. This is crucial for Lookit to
+    // pass the values from your JSON config to the component.
+    frameSchemaProperties: {
+        // Inherit properties from the base webcam-display frame
+        ...ExpLookitWebcamDisplay.prototype.frameSchemaProperties,
+        songUrl: {
+            type: 'string',
+            description: 'URL for background music to play during display',
+            default: ''
+        },
+        duration: {
+            type: 'number',
+            description: 'The duration in seconds that the mirror will be displayed',
+            default: 180
+        },
+        instructionText: {
+            type: 'string',
+            description: 'Text to display at the bottom of the screen',
+            default: ''
+        },
+        forceFullscreen: {
+            type: 'boolean',
+            description: 'Whether to automatically enter fullscreen mode upon frame load',
+            default: true
+        }
+        // Note: nextButtonText and showPreviousButton are already inherited
+    },
+
+    // This function runs once the component's element has been inserted into the DOM.
     didInsertElement() {
         this._super(...arguments);
-        console.log('[MirrorFrame] didInsertElement triggered');
+        this.set('timeLeft', this.get('duration'));
 
-        // Remove white borders by enforcing full-bleed layout
-        const container = document.querySelector('.exp-lookit-mirror');
-        if (container) {
-            Object.assign(container.style, {
-                margin: '0',
-                padding: '0',
-                overflow: 'hidden',
-                width: '100vw',
-                height: '100vh',
-                position: 'relative' // Establish a stacking context
-            });
+        // Attempt to force fullscreen if specified
+        if (this.get('forceFullscreen')) {
+            this.send('displayFullscreen');
         }
 
-        this._injectMirror();
         this._setupAudio();
+        this._setupTimer();
+        this._setupKeyListener();
     },
 
+    // This function runs just before the component is removed from the DOM.
     willDestroyElement() {
         this._super(...arguments);
-        console.log('[MirrorFrame] willDestroyElement triggered');
-
+        // Clean up everything to prevent memory leaks
         this._stopAudio();
-        
-        // Clean up direct stream if we created one
-        if (this.get('directStream')) {
-            console.log('[MirrorFrame] Stopping direct camera stream');
-            try {
-                const stream = this.get('directStream');
-                const tracks = stream.getTracks();
-                tracks.forEach(track => track.stop());
-            } catch (e) {
-                console.error('[MirrorFrame] Error stopping direct stream:', e);
-            }
-        }
-
-        const mirrorElem = document.getElementById('direct-mirror-container');
-        if (mirrorElem) {
-            console.log('[MirrorFrame] Removing mirror container');
-            mirrorElem.remove();
-        } else {
-            console.warn('[MirrorFrame] No mirror container found to remove');
-        }
+        clearInterval(this.get('timer'));
+        this._removeKeyListener();
     },
 
-    _injectMirror(retries = 5) {
-        console.log(`[MirrorFrame] Attempting to inject mirror, retries left: ${retries}`);
-        const recorderContainer = document.querySelector('.recorder-container');
-        if (!recorderContainer) {
-            console.warn('[MirrorFrame] Recorder container not found');
-            if (retries > 0) {
-                setTimeout(() => this._injectMirror(retries - 1), 200);
-            } else {
-                console.error('[MirrorFrame] Failed to find recorder container after retries');
-            }
-            return;
-        }
-
-        console.log('[MirrorFrame] Recorder container found');
-
-        const mirrorContainer = document.createElement('div');
-        mirrorContainer.id = 'direct-mirror-container';
-        Object.assign(mirrorContainer.style, {
-            position: 'absolute',
-            top: '0',
-            left: '0',
-            width: '100%',
-            height: '100%',
-            margin: '0',
-            padding: '0',
-            overflow: 'hidden',
-            zIndex: '1' // Lower z-index to ensure controls remain on top
-        });
-
-        const mirrorVideo = document.createElement('video');
-        mirrorVideo.id = 'direct-mirror-video';
-        mirrorVideo.autoplay = true;
-        mirrorVideo.muted = true;
-        mirrorVideo.playsInline = true;
-        Object.assign(mirrorVideo.style, {
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            transform: 'scaleX(-1)',
-            display: 'block',
-            margin: '0',
-            padding: '0'
-        });
-
-        mirrorContainer.appendChild(mirrorVideo);
-        recorderContainer.insertBefore(mirrorContainer, recorderContainer.firstChild);
-        console.log('[MirrorFrame] Mirror video element injected');
-
-        const sessionRecorder = this.get('sessionRecorder');
-
-        if (sessionRecorder && sessionRecorder.stream) {
-            console.log('[MirrorFrame] Using sessionRecorder stream');
-            mirrorVideo.srcObject = sessionRecorder.stream;
-            mirrorVideo.play().then(() => {
-                console.log('[MirrorFrame] Mirror video playing from existing stream');
-            }).catch(e => {
-                console.error('[MirrorFrame] Error playing video from sessionRecorder stream:', e);
-            });
-        } else {
-            console.warn('[MirrorFrame] sessionRecorder stream not found. Trying direct getUserMedia.');
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => {
-                    mirrorVideo.srcObject = stream;
-                    mirrorVideo.play()
-                        .then(() => console.log('[MirrorFrame] Mirror video playing from direct stream'))
-                        .catch(e => console.error('[MirrorFrame] Error playing direct mirror video:', e));
-                    
-                    // Store this stream for cleanup
-                    this.set('directStream', stream);
-                })
-                .catch(err => {
-                    console.error('[MirrorFrame] Failed to get camera stream:', err);
-                    mirrorContainer.remove();
-                });
-        }
-    },
-
+    // Sets up and starts the background music
     _setupAudio() {
         const songUrl = this.get('songUrl');
         if (songUrl) {
             console.log('[MirrorFrame] Setting up audio with URL:', songUrl);
-            this.audioPlayer = new Audio(songUrl);
-            this.audioPlayer.loop = true;
-            this.audioPlayer.volume = 0.7;
-            this.audioPlayer.play()
-                .then(() => console.log('[MirrorFrame] Audio started successfully'))
-                .catch(e => console.error('[MirrorFrame] Audio play error:', e));
-        } else {
-            console.log('[MirrorFrame] No songUrl provided; skipping audio setup');
+            const audio = new Audio(songUrl);
+            audio.loop = true;
+            audio.play().catch(e => console.error('[MirrorFrame] Audio play error:', e));
+            this.set('audioPlayer', audio);
         }
     },
 
+    // Stops the background music
     _stopAudio() {
-        if (this.audioPlayer) {
-            console.log('[MirrorFrame] Stopping and cleaning up audio');
-            this.audioPlayer.pause();
-            this.audioPlayer = null;
-        } else {
-            console.log('[MirrorFrame] No audio player to stop');
+        const audio = this.get('audioPlayer');
+        if (audio) {
+            audio.pause();
+            this.set('audioPlayer', null);
+        }
+    },
+
+    // Sets up the countdown timer
+    _setupTimer() {
+        const timer = setInterval(() => {
+            this.decrementProperty('timeLeft');
+            if (this.get('timeLeft') <= 0) {
+                // Use the 'proceed' action which is the standard in webcam-display
+                this.send('proceed');
+            }
+        }, 1000);
+        this.set('timer', timer);
+    },
+
+    // Adds a keyboard listener to listen for the 'E' key for early exit
+    _setupKeyListener() {
+        // Using a bound function to ensure 'this' context is correct
+        this.handleKey = (e) => {
+            if (e.key === 'e' || e.key === 'E') {
+                this.set('showExitConfirmation', true);
+            }
+        };
+        document.addEventListener('keydown', this.handleKey);
+    },
+
+    // Removes the keyboard listener during cleanup
+    _removeKeyListener() {
+        if (this.handleKey) {
+            document.removeEventListener('keydown', this.handleKey);
         }
     },
 
     actions: {
-        finish() {
-            console.log('[MirrorFrame] Finish button clicked');
-            if (this.get('doRecording')) {
-                this.stopRecorder().finally(() => {
-                    this.destroyRecorder();
-                    this.send('next');
-                });
-            } else {
-                this.send('next');
-            }
-        },
-        
-        // For backward compatibility
+        // The 'proceed' action is inherited from the base frame.
+        // We override it here to add our cleanup logic first.
         proceed() {
-            this.send('finish');
-        }
-    },
+            console.log('[MirrorFrame] Proceeding to next frame.');
+            // Stop everything before moving on
+            clearInterval(this.get('timer'));
+            this._stopAudio();
 
-    frameSchemaProperties: {
-        ...ExpLookitWebcamDisplay.prototype.frameSchemaProperties,
-        songUrl: {
-            type: 'string',
-            description: 'URL for background music to play during display'
+            // Save the final duration
+            this.set('completedDuration', this.get('duration') - this.get('timeLeft'));
+            this.send('setTimeEvent', 'mirrorTrial.stopped', {
+                duration: this.get('completedDuration')
+            });
+
+            // Call the original 'proceed' action from the parent class
+            // This will handle stopping the recorder and moving to the next frame.
+            this._super(...arguments);
         },
-        nextButtonText: {
-            type: 'string',
-            default: 'Next',
-            description: 'Text to display on the Next button'
+
+        // Action to confirm exiting the trial early
+        confirmExit() {
+            this.set('showExitConfirmation', false);
+            this.send('proceed'); // Use the standard action to exit
         },
-        showPreviousButton: {
-            type: 'boolean',
-            default: false,
-            description: 'Whether to show a previous button'
+
+        // Action to cancel exiting the trial
+        cancelExit() {
+            this.set('showExitConfirmation', false);
         }
     }
 });
-
 

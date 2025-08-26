@@ -1,46 +1,148 @@
-{{! exp-lookit-mirror template - extends webcam-display but adds mirror capability }}
-<div class="exp-lookit-mirror">
+``html
+{{! template.hbs }}
+
+{{!
+  This template adopts the standard Lookit frame structure for better integration.
+  We add a custom class 'exp-lookit-mirror' to the top-level div, allowing us to
+  apply fullscreen, immersive styles without breaking the standard layout.
+}}
+<div class="exp-lookit-mirror exp-lookit-webcam-display">
+
+    {{! All styling is now contained here, targeting elements within our custom class. }}
+    <style>
+        /* Force the frame container to take up the full screen */
+        .exp-lookit-mirror {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        /* Make the recorder container and the recorder itself fill the frame */
+        .exp-lookit-mirror .recorder-container,
+        .exp-lookit-mirror #recorder {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: none !important;
+            max-height: none !important;
+            border: none !important;
+        }
+
+        /* Find the actual video element and style it to be a fullscreen mirror */
+        .exp-lookit-mirror #recorder video {
+            transform: scaleX(-1); /* Flip horizontally */
+            object-fit: cover;     /* Ensure it covers the whole area */
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Hide the standard text blocks from the base frame */
+        .exp-lookit-mirror .exp-text {
+            display: none;
+        }
+
+        /* Style for the UI overlay (timer and instructions) */
+        .mirror-ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            text-shadow: 0 0 8px rgba(0,0,0,0.8);
+            pointer-events: none; /* Allows clicks to pass through */
+        }
+        .mirror-ui-overlay .mirror-timer,
+        .mirror-ui-overlay .mirror-instructions {
+            padding: 25px;
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        /* Position the standard Lookit controls at the bottom right */
+        .exp-lookit-mirror .exp-lookit-observation-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: auto;
+        }
+
+        /* Styles for the exit confirmation modal */
+        .mirror-exit-confirmation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+        .mirror-exit-dialog {
+            background: white;
+            padding: 2.5em 3.5em;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+    </style>
+
+    {{! The standard recorder container from the base frame. Our CSS will style it. }}
     <div class="row webcam-row">
         <div class="row recorder-container">
             <div id="recorder" class="recorder col-xs-12">
-                {{! Webcam will be attached here automatically by VideoRecord mixin }}
             </div>
         </div>
     </div>
-    
-    <div class="row exp-text">
-        <div class="text-container">
-            {{#each blocks as |block idx|}}
-                {{exp-text-block block=block}}
-            {{/each}}
+
+    {{! A custom overlay for our timer and instructions, placed on top of the video. }}
+    <div class="mirror-ui-overlay">
+        <div class="mirror-timer">
+            {{! A helper to format seconds into MM:SS, assuming one is available }}
+            {{format-time-from-seconds timeLeft}}
+        </div>
+        <div class="mirror-instructions">
+            {{instructionText}}
         </div>
     </div>
-    
-    {{#unless autoProceed}}
-    <div class="row exp-lookit-observation-controls" style="position: relative; z-index: 10;">
-        <div class="col-sm-12 pull-down" style="position: relative; padding-right: 1em;">
+
+    {{! The standard controls container. Our CSS will reposition it. }}
+    <div class="row exp-lookit-observation-controls">
+        <div class="col-sm-12 pull-down">
             {{#if showPreviousButton}}
                 <button type="button" class="btn btn-default pull-left" {{ action "previous" }}>
-                    Previous
+                    {{ t "Previous" }}
                 </button>
             {{/if}}
-
-            <button type="button" id="nextbutton" class="btn btn-success pull-right" {{ action "finish" }} style="font-size: 1.2em; padding: 0.8em 1.2em; margin-top: 1em; margin-right: 1.5em;">
-                {{nextButtonText}}
-            </button>
+            {{#unless autoProceed}}
+                <button type="button" id="nextbutton" class="btn btn-success pull-right" {{ action "proceed" }}>
+                    {{exp-format nextButtonText}}
+                </button>
+            {{/unless}}
         </div>
     </div>
-    {{/unless}}
 
+    {{! The exit confirmation modal, shown when 'E' is pressed }}
     {{#if showExitConfirmation}}
-    <div class="mirror-exit-confirmation" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 20; display: flex; align-items: center; justify-content: center;">
-        <div class="mirror-exit-dialog" style="background: white; padding: 2em; border-radius: 5px; text-align: center;">
-            <h3>Are you sure you want to exit?</h3>
-            <div class="mirror-button-container" style="margin-top: 1em;">
-                <button class="mirror-exit-yes btn btn-danger" {{action "confirmExit"}} style="margin-right: 1em;">Yes</button>
-                <button class="mirror-exit-no btn btn-default" {{action "cancelExit"}}>No</button>
+        <div class="mirror-exit-confirmation">
+            <div class="mirror-exit-dialog">
+                <h3>Are you sure you want to end early?</h3>
+                <div style="margin-top: 1.5em;">
+                    <button class="btn btn-danger" {{action "confirmExit"}} style="margin-right: 1em;">Yes, End Now</button>
+                    <button class="btn btn-default" {{action "cancelExit"}}>No, Continue</button>
+                </div>
             </div>
         </div>
-    </div>
     {{/if}}
+
 </div>
