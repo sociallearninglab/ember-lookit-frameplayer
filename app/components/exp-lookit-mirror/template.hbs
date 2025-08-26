@@ -1,14 +1,8 @@
-``html
+```html
 {{! template.hbs }}
 
-{{!
-  This template adopts the standard Lookit frame structure for better integration.
-  We add a custom class 'exp-lookit-mirror' to the top-level div, allowing us to
-  apply fullscreen, immersive styles without breaking the standard layout.
-}}
 <div class="exp-lookit-mirror exp-lookit-webcam-display">
 
-    {{! All styling is now contained here, targeting elements within our custom class. }}
     <style>
         /* Force the frame container to take up the full screen */
         .exp-lookit-mirror {
@@ -57,7 +51,7 @@
             align-items: center;
             color: white;
             text-shadow: 0 0 8px rgba(0,0,0,0.8);
-            pointer-events: none; /* Allows clicks to pass through */
+            pointer-events: none;
         }
         .mirror-ui-overlay .mirror-timer,
         .mirror-ui-overlay .mirror-instructions {
@@ -97,7 +91,6 @@
         }
     </style>
 
-    {{! The standard recorder container from the base frame. Our CSS will style it. }}
     <div class="row webcam-row">
         <div class="row recorder-container">
             <div id="recorder" class="recorder col-xs-12">
@@ -105,18 +98,16 @@
         </div>
     </div>
 
-    {{! A custom overlay for our timer and instructions, placed on top of the video. }}
     <div class="mirror-ui-overlay">
         <div class="mirror-timer">
-            {{! A helper to format seconds into MM:SS, assuming one is available }}
-            {{format-time-from-seconds timeLeft}}
+            {{! UPDATED: Use the new computed property for the timer display }}
+            {{formattedTimeLeft}}
         </div>
         <div class="mirror-instructions">
             {{instructionText}}
         </div>
     </div>
 
-    {{! The standard controls container. Our CSS will reposition it. }}
     <div class="row exp-lookit-observation-controls">
         <div class="col-sm-12 pull-down">
             {{#if showPreviousButton}}
@@ -132,7 +123,6 @@
         </div>
     </div>
 
-    {{! The exit confirmation modal, shown when 'E' is pressed }}
     {{#if showExitConfirmation}}
         <div class="mirror-exit-confirmation">
             <div class="mirror-exit-dialog">
