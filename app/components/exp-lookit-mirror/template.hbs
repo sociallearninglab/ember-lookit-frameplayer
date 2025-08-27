@@ -4,17 +4,21 @@
 <div class="exp-lookit-mirror exp-lookit-webcam-display">
 
     <style>
-        /* Force the frame container to take up the full screen without any borders or padding */
+        /* Force the entire page to have no margins or padding, removing all borders */
+        body, html, .ember-view {
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important; /* Prevents scrollbars from appearing */
+        }
+
+        /* Force the frame container to take up the full screen */
         .exp-lookit-mirror {
             position: absolute;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            overflow: hidden;
             background-color: #000;
-            padding: 0 !important;
-            margin: 0 !important;
         }
 
         /* Make the recorder container and the recorder itself fill the frame */
